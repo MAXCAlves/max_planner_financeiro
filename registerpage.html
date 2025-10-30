@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cadastro - Max Planner Financeiro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .bg-dark-futuristic {
+        background-color: #1e3a8a; 
+        background-image: linear-gradient(135deg, #1e3a8a 0%, #172554 100%);
+      }
+      .card-register {
+        background-color: #ffffff;
+        backdrop-filter: blur(10px);
+      }
+      .feedback-message {
+        display: none;
+        padding: 0.5rem;
+        border-radius: 0.375rem;
+      }
+    </style>
+  </head>
+  <body class="bg-dark-futuristic flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-md card-register rounded-xl shadow-2xl p-8">
+      <h1 class="text-3xl font-extrabold text-center text-blue-700 mb-2">
+        MAX PLANNER
+      </h1>
+      <p class="text-center text-gray-500 mb-6 text-sm">
+        Crie sua conta e comece a planejar seu futuro.
+      </p>
+
+      <!-- Área de Feedback (Sucesso/Erro) -->
+      <p id="feedbackMessage" class="feedback-message mb-4"></p>
+
+      <!-- Formulário de Cadastro -->
+      <form id="registerForm" class="space-y-4">
+        <div>
+          <label for="name" class="block text-gray-700 text-sm font-medium">Nome Completo</label>
+          <input
+            type="text"
+            id="name"
+            name="name"
+            required
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label for="email" class="block text-gray-700 text-sm font-medium">E-mail</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            required
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label for="password" class="block text-gray-700 text-sm font-medium">Senha</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            required
+            minlength="6"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p class="text-xs text-gray-500 mt-1">Mínimo de 6 caracteres.</p>
+        </div>
+        <button
+          type="submit"
+          class="w-full bg-green-600 text-white font-bold py-2 rounded-lg hover:bg-green-700 transition duration-200"
+        >
+          Cadastrar
+        </button>
+      </form>
+
+      <p class="text-center text-gray-500 text-sm mt-6">
+        Já tem conta?
+        <a href="login.html" class="text-blue-600 hover:text-blue-700 font-medium">
+          Faça Login
+        </a>
+      </p>
+    </div>
+
+    <!-- Firebase SDK e Lógica de Cadastro -->
+    <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-auth-compat.js"></script>
+    <script>
+      // --- CONFIGURAÇÃO DO FIREBASE ---
+      const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_AUTH_DOMAIN",
+        projectId: "YOUR_PROJECT_ID",
+      };
+      firebase.initializeApp(firebaseConfig);
+      const auth = firebase.auth();
+      
+      const feedbackEl = document.getElementById('feedbackMessage');
+      
+      function showFeedback(message, type = 'success') {
+          feedbackEl.textContent = message;
+          feedbackEl.className = 'feedback-message mb-4';
+          if (type === 'success') {
+              feedbackEl.classList.add('bg-green-100', 'text-green-800');
+          } else if (type === 'error') {
+              feedbackEl.classList.add('bg-red-100', 'text-red-800');
+          }
+          feedbackEl.classList.remove('hidden');
+      }
+
+      function getFriendlyErrorMessage(errorCode) {
+        switch (errorCode) {
+          case 'auth/email-already-in-use':
+            return "Este e-mail já está cadastrado. Tente fazer login.";
+          case 'auth/invalid-email':
+            return "O e-mail fornecido é inválido.";
+          case 'auth/weak-password':
+            return "A senha é muito fraca. Escolha uma senha mais forte (mínimo 6 caracteres).";
+          default:
+            return "Erro desconhecido. Por favor, tente novamente.";
+        }
+      }
+
+      // --- FUNÇÃO DE CADASTRO ---
+      document.getElementById("registerForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        feedbackEl.style.display = 'none'; 
+        
+        const name = e.target.name.value;
+        const email = e.target.email.value;
+        const password = e.target.password.value;
+        
+        try {
+          // 1. Cria o usuário no Firebase Auth (isso automaticamente loga o usuário)
+          const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+          const user = userCredential.user;
+
+          // 2. Adiciona o nome de exibição (DisplayName)
+          await user.updateProfile({
+            displayName: name
+          });
+
+          // 3. Sucesso e Redirecionamento
+          // O onAuthStateChanged (abaixo) irá detectar o login e fazer o redirecionamento,
+          // mas vamos adicionar o feedback e um pequeno delay para garantir a sincronização.
+          showFeedback("Conta criada com sucesso! Redirecionando para o Dashboard...", 'success');
+          
+        } catch (error) {
+          console.error("Erro no cadastro:", error);
+          showFeedback(getFriendlyErrorMessage(error.code), 'error');
+        }
+      });
+      
+      // Checagem de estado: Se o usuário estiver logado (após o registro ou login), redireciona.
+      auth.onAuthStateChanged(user => {
+        if (user) {
+          // Garante que o redirecionamento só aconteça após um pequeno delay para que o dashboard
+          // tenha tempo de carregar o nome de usuário recém-definido no Firebase.
+          setTimeout(() => {
+              window.location.href = "dashboard.html"; 
+          }, 500); 
+        }
+      });
+    </script>
+  </body>
+</html>

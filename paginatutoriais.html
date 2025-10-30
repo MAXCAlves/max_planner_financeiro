@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vídeos Tutoriais - Max Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Incluindo o script de Suporte Multilíngue -->
+    <script src="suporte_multilingue.js"></script> 
+    <!-- Firebase SDK (apenas para garantir o acesso ao dashboard) -->
+    <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-auth-compat.js"></script>
+  </head>
+  <body class="bg-gray-100 min-h-screen">
+    <header class="bg-white shadow p-4 flex justify-between items-center">
+      <h1 class="text-xl font-bold text-blue-700">Max Planner Financeiro</h1>
+      <a href="dashboard.html" class="text-blue-600 hover:underline text-sm" data-i18n="backToDashboard">Voltar ao Dashboard</a>
+    </header>
+
+    <main class="max-w-6xl mx-auto py-10 px-4">
+      <h2 class="text-3xl font-extrabold text-gray-800 mb-6 text-center" data-i18n="tutorials">Vídeos Tutoriais</h2>
+      <p class="text-center text-gray-600 mb-10 text-lg">
+        Aprenda a usar o Max Planner Financeiro com tutoriais práticos e objetivos.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        <!-- Tutorial 1: Onboarding e Upload de Dados -->
+        <div class="bg-white shadow-2xl rounded-lg overflow-hidden border border-blue-100">
+          <iframe 
+            class="w-full aspect-video" 
+            src="https://www.youtube.com/embed/TUTORIAL_ID1" 
+            title="Tutorial 1: Configuração e Upload de Planilha" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+            allowfullscreen>
+          </iframe>
+          <div class="p-5">
+            <h3 class="font-bold text-xl text-blue-700">1. Primeiros Passos e Upload XLSX</h3>
+            <p class="text-sm text-gray-700 mt-2">
+                Guia completo para configurar sua conta e enviar sua primeira planilha de dados financeiros.
+            </p>
+          </div>
+        </div>
+
+        <!-- Tutorial 2: Relatórios e Análise -->
+        <div class="bg-white shadow-2xl rounded-lg overflow-hidden border border-blue-100">
+          <iframe 
+            class="w-full aspect-video" 
+            src="https://www.youtube.com/embed/TUTORIAL_ID2" 
+            title="Tutorial 2: Análise de Relatórios e PDF" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+            allowfullscreen>
+          </iframe>
+          <div class="p-5">
+            <h3 class="font-bold text-xl text-blue-700">2. Entendendo os Gráficos e PDF</h3>
+            <p class="text-sm text-gray-700 mt-2">
+                Como interpretar a Evolução Mensal, Distribuição de Investimentos e gerar o Relatório PDF profissional.
+            </p>
+          </div>
+        </div>
+        
+        <!-- Lembre-se de substituir TUTORIAL_ID1 e TUTORIAL_ID2 pelos IDs reais do YouTube -->
+
+      </div>
+    </main>
+    
+    <!-- Script para aplicação de traduções -->
+    <script>
+        // Esta é a verificação final para garantir que as traduções e o estado do Firebase funcionem
+        if (typeof applyTranslations === 'function') {
+            applyTranslations(localStorage.getItem('lang') || 'pt-BR');
+        }
+    </script>
+  </body>
+</html>

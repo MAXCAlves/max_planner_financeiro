@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title data-i18n="managePlans">Gerenciar Planos - Max Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="suporte_multilingue.js"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-firestore-compat.js"></script>
+    <style>
+      .payment-option {
+        transition: all 0.15s ease-in-out;
+      }
+      .payment-option:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      }
+      .modal {
+        background-color: rgba(0, 0, 0, 0.7);
+        transition: opacity 0.3s ease;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100 min-h-screen">
+    <!-- Header Simples -->
+    <header class="bg-white shadow p-4 flex justify-between items-center">
+      <h1 class="text-xl font-bold text-blue-700">Max Planner Financeiro</h1>
+      <a href="/dashboard.html" class="text-blue-600 hover:underline text-sm" data-i18n="backToDashboard">Voltar ao Dashboard</a>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-8 pt-12">
+      <h2 class="text-3xl font-extrabold text-gray-800 mb-2" data-i18n="managePlans">Gerenciar Planos</h2>
+
+      <!-- Feedback de Usuário Logado -->
+      <div id="userInfo" class="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 mb-6 rounded-lg" role="alert">
+        <p class="font-bold" data-i18n="welcome">Bem-vindo(a), <span id="userName">Usuário</span>!</p>
+        <p class="text-sm"><span data-i18n="currentPlan">Seu plano atual é:</span> <span id="currentPlanStatus" class="font-bold text-green-700">Gratuito</span></p>
+      </div>
+
+      <!-- Seção de Seleção de Planos (Passo 1) -->
+      <div id="planSelectionSection">
+        <p class="text-xl text-gray-700 mb-8" id="selectPlanMessage">
+            Selecione um plano abaixo para fazer upgrade:
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- Plano Gratuito -->
+            <div class="plan-card bg-white p-6 rounded-lg shadow-xl border-2 border-green-500">
+                <h4 class="text-lg font-bold mb-2" data-i18n="planFree">Gratuito</h4>
+                <p class="text-3xl font-bold text-green-700 mb-4" data-i18n="plan1Price">R$ 0,00</p>
+                <p class="text-sm text-gray-600">Seu futuro financeiro começa agora.</p>
+                <button class="w-full bg-green-500 text-white py-2 rounded mt-4 cursor-default opacity-50" disabled data-i18n="currentPlan">Plano Atual</button>
+            </div>
+
+            <!-- Plano Profissional -->
+            <div id="cardProfissional" class="plan-card bg-white p-6 rounded-lg shadow-xl border-2 border-gray-300">
+                <h4 class="text-lg font-bold mb-2 text-blue-700" data-i18n="planProfessional">Profissional</h4>
+                <p class="text-3xl font-bold text-blue-700 mb-4" data-i18n="plan2Price">R$ 19,90/mês</p>
+                <p class="text-sm text-gray-600">Acesso a exportação PDF e gráficos avançados.</p>
+                <button onclick="startPaymentFlow('Profissional', 'R$ 19,90')" class="w-full bg-blue-600 text-white py-2 rounded mt-4 hover:bg-blue-700" data-i18n="subscribe">Assinar</button>
+            </div>
+
+            <!-- Plano Empresarial -->
+            <div id="cardEmpresarial" class="plan-card bg-white p-6 rounded-lg shadow-xl border-2 border-gray-300">
+                <h4 class="text-lg font-bold mb-2 text-gray-600" data-i18n="planEnterprise">Empresarial</h4>
+                <p class="text-3xl font-bold text-gray-600 mb-4" data-i18n="plan3Price">Sob consulta</p>
+                <p class="text-sm text-gray-600">Para equipes e múltiplos usuários.</p>
+                <a href="mailto:contato@maxplanner.com.br" class="w-full block text-center bg-gray-500 text-white py-2 rounded mt-4 hover:bg-gray-600" data-i18n="contactUs">Fale Conosco</a>
+            </div>
+        </div>
+      </div>
+      
+      <!-- Seção de Pagamento (Passo 2) -->
+      <div id="paymentFlowSection" class="hidden bg-white p-8 rounded-lg shadow-2xl">
+          <h3 class="text-2xl font-bold text-gray-800 mb-4" data-i18n="finalizeSubscription">Finalizar Assinatura</h3>
+          <p class="text-lg text-gray-700 mb-6" id="paymentFlowInfo">
+              Você selecionou o plano Profissional.
+          </p>
+
+          <div class="border-t border-gray-200 pt-6">
+            
+              <!-- Opções de Pagamento -->
+              <h4 class="text-xl font-semibold text-gray-700 mb-4" data-i18n="startPayment">Comece adicionando um método de pagamento</h4>
+              
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <!-- Add Card -->
+                <button onclick="openPaymentModal('Card')" class="payment-option bg-white p-4 rounded-lg shadow border border-gray-300 text-center transition duration-150">
+                  <span class="text-2xl block mb-1">💳</span>
+                  <span class="text-sm font-medium" data-i18n="addCard">Adicionar Cartão</span>
+                </button>
+                <!-- Mercado Pago -->
+                <button onclick="openPaymentModal('MercadoPago')" class="payment-option bg-white p-4 rounded-lg shadow border border-gray-300 text-center transition duration-150">
+                  <span class="text-2xl block mb-1" style="color:#00a896;">🇲🇵</span>
+                  <span class="text-sm font-medium" data-i18n="addMercadoPago">Mercado Pago</span>
+                </button>
+                <!-- PayPal -->
+                <button onclick="openPaymentModal('PayPal')" class="payment-option bg-white p-4 rounded-lg shadow border border-gray-300 text-center transition duration-150">
+                  <span class="text-2xl block mb-1" style="color:#003087;">🅿</span>
+                  <span class="text-sm font-medium" data-i18n="addPayPal">PayPal</span>
+                </button>
+                <!-- Redeem Code -->
+                <button onclick="openPaymentModal('RedeemCode')" class="payment-option bg-white p-4 rounded-lg shadow border border-gray-300 text-center transition duration-150">
+                  <span class="text-2xl block mb-1">🎁</span>
+                  <span class="text-sm font-medium" data-i18n="redeemCode">Código de Resgate</span>
+                </button>
+              </div>
+              
+              <p id="paymentFeedback" class="mt-4 text-center text-sm font-semibold text-green-600 hidden" data-i18n="paymentMethodAdded">Método de pagamento adicionado (MOCK).</p>
+              
+              <!-- Botão Final de Pagamento -->
+              <button onclick="activatePlan()" id="activateButton" class="w-full mt-6 bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition duration-200 opacity-50 cursor-not-allowed" disabled data-i18n="payAndActivate">
+                Pagar e Ativar Plano
+              </button>
+          </div>
+      </div>
+    </main>
+
+    <!-- MODAL DE PAGAMENTO (Estrutura Flutuante) -->
+    <div id="paymentModal" class="modal fixed inset-0 z-50 flex items-center justify-center hidden opacity-0 transition-opacity">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md transform transition-transform duration-300 scale-95">
+            <h3 id="modalTitle" class="text-2xl font-bold mb-4 text-blue-700">Adicionar Cartão</h3>
+            <p class="text-gray-600 mb-6" id="modalDescription"></p>
+            
+            <form id="modalForm" onsubmit="handlePaymentSubmit(event)">
+                <div id="cardFields" class="space-y-4">
+                    <!-- Campos de Cartão (Visível por padrão) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700" for="cardNumber">Número do Cartão</label>
+                        <input type="text" id="cardNumber" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="XXXX XXXX XXXX XXXX">
+                    </div>
+                    <div class="flex space-x-4">
+                        <div class="w-1/2">
+                            <label class="block text-sm font-medium text-gray-700" for="cardExpiry">Validade</label>
+                            <input type="text" id="cardExpiry" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="MM/AA">
+                        </div>
+                        <div class="w-1/2">
+                            <label class="block text-sm font-medium text-gray-700" for="cardCVV">CVV</label>
+                            <input type="text" id="cardCVV" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="123">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="codeField" class="space-y-4 hidden">
+                    <!-- Campo de Código (Visível apenas para Redeem Code) -->
+                    <label class="block text-sm font-medium text-gray-700" data-i18n="redeemCodeInput" for="redeemCodeInput">Insira o Código de Resgate</label>
+                    <input type="text" id="redeemCodeInput" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="MAXPLANNER-XXXXX">
+                </div>
+                
+                <div id="externalLinkInfo" class="hidden bg-yellow-50 p-3 rounded-lg text-sm text-yellow-800">
+                    <p data-i18n="externalPaymentNotice">Você será redirecionado para o site oficial do provedor para conectar sua conta e finalizar o pagamento.</p>
+                </div>
+
+                <div id="modalFeedback" class="mt-4 text-sm text-center text-red-600 hidden"></div>
+                
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        Continuar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+      // --- CONFIGURAÇÃO DO FIREBASE ---
+      const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_AUTH_DOMAIN",
+        projectId: "YOUR_PROJECT_ID",
+      };
+      firebase.initializeApp(firebaseConfig);
+      const auth = firebase.auth();
+      const db = firebase.firestore(); 
+
+      // Variáveis de Estado Global
+      let currentPlan = 'Gratuito'; // MOCK: Leria do Firestore
+      let selectedPlan = '';
+      let isPaymentMethodAdded = false; 
+      let currentPlanPrice = '';
+      
+      const T = (key) => translate(key, localStorage.getItem('lang') || 'pt-BR');
+
+
+      // ------------------------------------
+      // LÓGICA DE TRANSIÇÃO DE FLUXO (STEPS)
+      // ------------------------------------
+      
+      // Abre e anima o modal
+      function openModal() {
+          const modal = document.getElementById('paymentModal');
+          modal.classList.remove('hidden');
+          setTimeout(() => {
+              modal.classList.remove('opacity-0');
+              modal.querySelector('div').classList.remove('scale-95');
+          }, 10);
+      }
+
+      // Fecha e anima o modal
+      window.closeModal = function() {
+          const modal = document.getElementById('paymentModal');
+          modal.classList.add('opacity-0');
+          modal.querySelector('div').classList.add('scale-95');
+          setTimeout(() => {
+              modal.classList.add('hidden');
+          }, 300);
+      };
+      
+      // 1. Inicia o fluxo de pagamento (do cartão do plano)
+      window.startPaymentFlow = function(planName, price) {
+          selectedPlan = planName;
+          currentPlanPrice = price;
+
+          // Transição para a Seção de Pagamento
+          document.getElementById('planSelectionSection').classList.add('hidden');
+          document.getElementById('paymentFlowSection').classList.remove('hidden');
+          
+          // Atualiza o texto da seção de pagamento
+          document.getElementById('paymentFlowInfo').innerHTML = 
+            `${T('youSelectedPlan')} <span class="font-bold">${planName}</span> (${price}). ${T('startPaymentPrompt')}`;
+            
+          applyTranslations(localStorage.getItem('lang') || 'pt-BR');
+      };
+      
+      // 2. Abre o Modal para Adicionar Método de Pagamento
+      window.openPaymentModal = function(method) {
+          const modalTitle = document.getElementById('modalTitle');
+          const modalDescription = document.getElementById('modalDescription');
+          
+          let titleKey = '';
+          let descKey = '';
+          
+          // Lógica baseada no método
+          if (method === 'RedeemCode') {
+              titleKey = 'redeemCode';
+              descKey = 'redeemCodeDesc';
+              document.getElementById('cardFields').classList.add('hidden');
+              document.getElementById('codeField').classList.remove('hidden');
+              document.getElementById('externalLinkInfo').classList.add('hidden');
+          } else if (method === 'Card') {
+              titleKey = 'addCard';
+              descKey = 'addCardDesc';
+              document.getElementById('cardFields').classList.remove('hidden');
+              document.getElementById('codeField').classList.add('hidden');
+              document.getElementById('externalLinkInfo').classList.add('hidden');
+          } else { // MercadoPago / PayPal (Externos)
+              titleKey = method; // Usar a chave do método como título
+              descKey = 'externalPaymentDesc';
+              document.getElementById('cardFields').classList.add('hidden');
+              document.getElementById('codeField').classList.add('hidden');
+              document.getElementById('externalLinkInfo').classList.remove('hidden');
+          }
+          
+          // Atualiza o texto do modal
+          modalTitle.textContent = T(titleKey);
+          modalDescription.textContent = T(descKey);
+          
+          // Adiciona a nova chave de feedback (simulação)
+          document.getElementById('modalForm').setAttribute('data-method', method);
+
+          openModal();
+      };
+      
+      // 3. Simula a Submissão do Pagamento no Modal
+      window.handlePaymentSubmit = function(e) {
+          e.preventDefault();
+          const method = document.getElementById('modalForm').getAttribute('data-method');
+
+          // Em um aplicativo real, aqui você faria a chamada API para processar.
+          if (method === 'Card' && !document.getElementById('cardNumber').value) {
+               document.getElementById('modalFeedback').textContent = "Preencha o número do cartão (simulação).";
+               document.getElementById('modalFeedback').classList.remove('hidden');
+               return;
+          }
+          
+          closeModal();
+          
+          // MOCK: Sucesso na adição do método
+          isPaymentMethodAdded = true;
+          
+          // Atualiza o feedback na seção principal
+          document.getElementById('paymentFeedback').classList.remove('hidden');
+          document.getElementById('paymentFeedback').textContent = T('paymentMethodAdded');
+
+          // Habilita o botão final de ativação
+          activateButton.disabled = false;
+          activateButton.classList.remove('opacity-50', 'cursor-not-allowed');
+      };
+      
+      // 4. Simula a Ativação Final do Plano (Após pagamento)
+      window.activatePlan = function() {
+          if (!isPaymentMethodAdded) {
+              alert("Por favor, adicione um método de pagamento antes de ativar o plano.");
+              return;
+          }
+          
+          // MOCK: Transição para plano ativo
+          currentPlan = `${selectedPlan}_Ativo`;
+          
+          // [TODO REAL]: Chamar API backend para finalizar a transação e atualizar o Firestore.
+
+          // Feedback e redirecionamento
+          alert(T('planActivatedSuccess').replace('Plano', selectedPlan));
+          window.location.href = "/dashboard.html"; 
+      };
+
+      // ------------------------------------
+      // RENDERIZAÇÃO INICIAL E STATUS
+      // ------------------------------------
+      function renderPlanStatus() {
+          const T = (key) => translate(key, localStorage.getItem('lang') || 'pt-BR');
+          
+          currentPlanStatusEl.textContent = T(`plan${currentPlan.replace('_Ativo', '')}`);
+          
+          // Resetar estilos
+          document.querySelectorAll('.plan-card').forEach(card => {
+            card.classList.remove('border-green-500');
+            card.classList.add('border-gray-300');
+            card.querySelector('button').disabled = false;
+            card.querySelector('button').classList.remove('opacity-50', 'cursor-default');
+            card.querySelector('button').textContent = T('subscribe');
+          });
+
+          // Se o plano for ATIVO, destacar o plano e desabilitar o botão
+          if (currentPlan.includes('_Ativo')) {
+              const activePlanName = currentPlan.replace('_Ativo', '');
+              
+              const activeCard = document.querySelector(`#card${activePlanName}`);
+              if (activeCard) {
+                  activeCard.classList.add('border-green-500');
+                  activeCard.querySelector('button').textContent = T('currentPlan');
+                  activeCard.querySelector('button').disabled = true;
+                  activeCard.querySelector('button').classList.add('opacity-50', 'cursor-default');
+              }
+          }
+      }
+
+      // ------------------------------------
+      // INICIALIZAÇÃO
+      // ------------------------------------
+      auth.onAuthStateChanged(user => {
+        if (!user) {
+          window.location.href = "/login.html"; 
+        } else {
+          document.getElementById('userName').textContent = user.displayName || T('myAccount');
+          
+          // MOCK: Em um app real, buscaria o 'currentPlan' do Firestore.
+          renderPlanStatus();
+        }
+      });
+      
+      // Aplica traduções ao carregar
+      if (typeof applyTranslations === 'function') {
+          // Adiciona as chaves temporariamente para o fluxo de pagamento do JS
+          translations['pt-BR']['planActivatedSuccess'] = "Parabéns! O Plano foi ativado com sucesso!";
+          translations['en-US']['planActivatedSuccess'] = "Congratulations! The Plan was successfully activated!";
+          translations['pt-BR']['selectPlanMessage'] = "Selecione um plano abaixo para fazer upgrade:";
+          translations['pt-BR']['youSelectedPlan'] = "Você selecionou o plano";
+          translations['pt-BR']['startPaymentPrompt'] = "Clique em 'Começar' abaixo para adicionar seu método de pagamento e finalizar sua compra.";
+          translations['pt-BR']['finalizeSubscription'] = "Finalizar Assinatura";
+          translations['pt-BR']['redeemCodeDesc'] = "Insira um código de resgate válido para aplicar um desconto ou ativar créditos na sua conta.";
+          translations['pt-BR']['addCardDesc'] = "Preencha as informações do seu cartão de crédito ou débito para processar a mensalidade de forma segura.";
+          translations['pt-BR']['externalPaymentDesc'] = "Ao clicar em continuar, você será direcionado para o site oficial do provedor (PayPal/Mercado Pago) para autenticar e completar a transação.";
+          
+          applyTranslations(localStorage.getItem('lang') || 'pt-BR');
+      }
+    </script>
+  </body>
+</html>

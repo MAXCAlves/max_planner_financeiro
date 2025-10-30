@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title data-i18n="adminPanel">Painel Admin - Max Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="suporte_multilingue.js"></script>
+    <!-- Firebase SDKs para checar login e obter claims -->
+    <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-firestore-compat.js"></script>
+  </head>
+  <body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow p-4 flex justify-between items-center">
+      <h1 class="text-xl font-bold text-blue-700" data-i18n="adminPanelTitle">
+        Admin - Max Planner Financeiro
+      </h1>
+      <div class="flex items-center gap-4">
+        <!-- Seletor de Idioma -->
+        <select id="languageSelector" onchange="changeLanguage(this.value)" class="p-2 border rounded-lg text-sm">
+          <option value="pt-BR">Português (BR)</option>
+          <option value="en-US">English (US)</option>
+        </select>
+        <button
+          onclick="window.location.href='/dashboard_max_planner.html'"
+          class="text-blue-600 hover:underline text-sm"
+          data-i18n="backToDashboard"
+        >
+          Voltar ao Dashboard
+        </button>
+        <button
+          onclick="logout()"
+          class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 text-sm"
+          data-i18n="logout"
+        >
+          Sair
+        </button>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-6">
+        <!-- Indicador de Carregamento/Checagem de Permissão -->
+        <div id="loadingIndicator" class="text-center text-blue-600 font-semibold my-10">
+            Checando permissões de Administrador...
+        </div>
+
+        <!-- Conteúdo Administrativo (Oculto até que a permissão seja verificada) -->
+        <div id="adminContent" class="hidden">
+            <h2
+                class="text-2xl font-semibold mb-6 text-gray-800"
+                data-i18n="adminPanel"
+            >
+                Painel Administrativo
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+                <!-- Cartão 1: Usuários Ativos -->
+                <div class="bg-white p-4 rounded shadow border-l-4 border-blue-500">
+                    <h3 class="text-lg font-bold text-blue-600 mb-2" data-i18n="activeUsers">Usuários Ativos</h3>
+                    <p class="text-3xl font-semibold">132</p>
+                </div>
+                <!-- Cartão 2: Novos Registros -->
+                <div class="bg-white p-4 rounded shadow border-l-4 border-green-500">
+                    <h3 class="text-lg font-bold text-green-600 mb-2" data-i18n="newRegistrations">Novos Registros (Mês)</h3>
+                    <p class="text-3xl font-semibold">25</p>
+                </div>
+                <!-- Cartão 3: Receita Mensal -->
+                <div class="bg-white p-4 rounded shadow border-l-4 border-yellow-500">
+                    <h3 class="text-lg font-bold text-yellow-600 mb-2" data-i18n="monthlyRevenue">Receita Mensal Estimada</h3>
+                    <p class="text-3xl font-semibold">R$ 2.620,00</p>
+                </div>
+            </div>
+
+            <!-- Tabela de Gerenciamento de Usuários -->
+            <div class="bg-white p-6 rounded shadow">
+                <h3 class="text-xl font-bold text-gray-800 mb-4" data-i18n="manageUsers">Gerenciar Usuários</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full table-auto text-left">
+                        <thead>
+                            <tr class="bg-blue-100">
+                                <th class="px-4 py-2" data-i18n="name">Nome</th>
+                                <th class="px-4 py-2" data-i18n="email">E-mail</th>
+                                <th class="px-4 py-2" data-i18n="status">Status</th>
+                                <th class="px-4 py-2 text-right" data-i18n="actions">Ações</th>
+                            </tr>
+                        </thead>
+                        <!-- DADOS MOCKADOS - SERÃO CARREGADOS DINAMICAMENTE -->
+                        <tbody id="userTableBody">
+                            <tr class="border-b">
+                                <td class="px-4 py-2">João da Silva</td>
+                                <td class="px-4 py-2">joao@email.com</td>
+                                <td class="px-4 py-2" data-i18n="statusActive">Ativo</td>
+                                <td class="px-4 py-2 text-right">
+                                    <button class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600" data-i18n="deactivate">Desativar</button>
+                                </td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="px-4 py-2">Maria Souza</td>
+                                <td class="px-4 py-2">maria@email.com</td>
+                                <td class="px-4 py-2" data-i18n="statusActive">Ativo</td>
+                                <td class="px-4 py-2 text-right">
+                                    <button class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600" data-i18n="deactivate">Desativar</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+      // --- CONFIGURAÇÃO DO FIREBASE ---
+      const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_AUTH_DOMAIN",
+        projectId: "YOUR_PROJECT_ID",
+        // Adicione outras chaves se necessário
+      };
+      firebase.initializeApp(firebaseConfig);
+      const auth = firebase.auth();
+      // Não precisa do Firestore aqui, apenas da autenticação para checar permissões.
+
+      const loadingEl = document.getElementById('loadingIndicator');
+      const adminContentEl = document.getElementById('adminContent');
+
+      // --- LÓGICA DE PROTEÇÃO POR CUSTOM CLAIMS ---
+      auth.onAuthStateChanged(async (user) => {
+        if (user) {
+            try {
+                // 1. Obter o token e as claims
+                const token = await user.getIdTokenResult();
+                
+                // 2. CHECAGEM DE ADMIN: Apenas se a claim 'admin' for verdadeira
+                if (token.claims.admin === true) {
+                    // Se for admin, carrega o painel
+                    loadingEl.classList.add('hidden');
+                    adminContentEl.classList.remove('hidden');
+                    // Aplica as traduções (necessário após carregar o conteúdo)
+                    applyTranslations(localStorage.getItem('lang') || 'pt-BR');
+                } else {
+                    // 3. Acesso Negado
+                    alert('Acesso negado. Você não tem permissões de administrador.');
+                    window.location.href = "/dashboard.html"; // Redireciona para o Dashboard
+                }
+            } catch (error) {
+                console.error("Erro ao verificar permissões de admin:", error);
+                alert('Erro na autenticação. Por favor, faça login novamente.');
+                window.location.href = "/login.html";
+            }
+        } else {
+            // Se não estiver logado, redireciona para login
+            window.location.href = "/login.html";
+        }
+      });
+      
+      // Função de Logout
+      window.logout = function () {
+        auth.signOut().then(() => {
+          // Redirecionamento é tratado por onAuthStateChanged
+          console.log("Usuário desconectado.");
+        }).catch((error) => {
+          console.error("Erro ao sair:", error);
+        });
+      };
+      
+      // Função de mudança de idioma (do seu código original)
+      window.changeLanguage = function (lang) {
+        localStorage.setItem('lang', lang);
+        applyTranslations(lang);
+      };
+      
+      // Aplica traduções iniciais para o cabeçalho antes do carregamento completo
+      applyTranslations(localStorage.getItem('lang') || 'pt-BR');
+
+    </script>
+  </body>
+</html>

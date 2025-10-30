@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Max Planner Financeiro</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Firebase SDKs - Autenticação e Firestore -->
+    <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-firestore-compat.js"></script>
+    
+    <!-- Bibliotecas de Terceiros (PDF/Multilíngue) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="exportar_pdf_relatorio.js"></script>
+    <script src="suporte_multilingue.js"></script>
+  </head>
+  <body class="bg-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow p-4 flex justify-between items-center">
+      <h1 class="text-xl font-bold text-blue-700" data-i18n="welcome">
+        Max Planner Financeiro
+      </h1>
+      <div class="flex items-center gap-4">
+        
+        <!-- Botão para o Painel Admin (COM ID E OCULTO POR PADRÃO) -->
+        <button
+          id="adminButton" 
+          onclick="window.location.href='/painel_admin_max_planner.html'"
+          class="text-blue-600 hover:underline text-sm hidden"
+          data-i18n="adminPanel"
+        >
+          Painel Administrativo
+        </button>
+
+        <!-- Botão para Tutoriais -->
+        <button
+          onclick="window.location.href='/pagina_tutoriais.html'"
+          class="text-blue-600 hover:underline text-sm"
+          data-i18n="tutorials"
+        >
+          Tutoriais
+        </button>
+        <!-- Botão Sair -->
+        <button
+          id="logoutButton"
+          onclick="logout()"
+          class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 text-sm"
+          data-i18n="logout"
+        >
+          Sair
+        </button>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-6">
+      <h2
+        class="text-2xl font-semibold text-gray-800 mb-4"
+        data-i18n="dashboard"
+      >
+        Painel de Controle
+      </h2>
+
+      <!-- Área de Feedback (Sucesso/Erro) -->
+      <div id="feedbackMessage" class="hidden p-3 rounded-lg text-center mb-4"></div>
+      <div id="loadingIndicator" class="hidden text-center text-blue-600 font-semibold mb-4">
+        Processando sua planilha... Isso pode levar alguns segundos.
+      </div>
+      
+      <!-- Indicadores Chave -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+        <!-- Receitas -->
+        <div class="bg-white p-6 rounded shadow border-l-4 border-green-500">
+          <h3 class="text-lg font-medium text-gray-500" data-i18n="totalIncome">
+            Receitas
+          </h3>
+          <p id="totalIncome" class="text-2xl font-bold text-green-600">
+            R$ 0,00
+          </p>
+        </div>
+
+        <!-- Despesas -->
+        <div class="bg-white p-6 rounded shadow border-l-4 border-red-500">
+          <h3
+            class="text-lg font-medium text-gray-500"
+            data-i18n="totalExpenses"
+          >
+            Despesas
+          </h3>
+          <p id="totalExpenses" class="text-2xl font-bold text-red-600">
+            R$ 0,00
+          </p>
+        </div>
+
+        <!-- Saldo Investido -->
+        <div class="bg-white p-6 rounded shadow border-l-4 border-yellow-500">
+          <h3 class="text-lg font-medium text-gray-500" data-i18n="invested">
+            Saldo Investido
+          </h3>
+          <p id="investedBalance" class="text-2xl font-bold text-yellow-600">
+            R$ 0,00
+          </p>
+        </div>
+
+        <!-- Saldo Disponível -->
+        <div class="bg-white p-6 rounded shadow border-l-4 border-blue-500">
+          <h3
+            class="text-lg font-medium text-gray-500"
+            data-i18n="available"
+          >
+            Saldo Disponível
+          </h3>
+          <p id="availableBalance" class="text-2xl font-bold text-blue-600">
+            R$ 0,00
+          </p>
+        </div>
+      </div>
+
+      <!-- Ações e Relatórios -->
+      <div class="flex space-x-4 mb-10">
+        <!-- Input de arquivo escondido -->
+        <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="hidden" />
+
+        <!-- Botão que dispara a abertura do seletor de arquivo -->
+        <button
+          onclick="document.getElementById('excelFileInput').click()"
+          class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+          data-i18n="uploadExcel"
+          id="uploadButton"
+        >
+          Enviar arquivo Excel
+        </button>
+        <!-- Chamada para a função de exportação PDF -->
+        <button
+          onclick="gerarRelatorioPDF()"
+          class="bg-yellow-500 text-white px-6 py-3 rounded-lg hover:bg-yellow-600"
+          data-i18n="exportPDF"
+        >
+          Exportar Relatório em PDF
+        </button>
+      </div>
+
+      <!-- Gráficos -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Gráfico de Linha (Receitas x Despesas) -->
+        <div class="lg:col-span-2 bg-white p-6 rounded shadow">
+          <h3 class="text-xl font-semibold mb-4 text-gray-800">
+            Evolução Mensal
+          </h3>
+          <canvas id="graficoLinha" style="max-height: 400px"></canvas>
+        </div>
+
+        <!-- Gráfico de Pizza (Distribuição de Investimentos) -->
+        <div class="lg:col-span-1 bg-white p-6 rounded shadow">
+          <h3 class="text-xl font-semibold mb-4 text-gray-800">
+            Distribuição de Investimentos
+          </h3>
+          <canvas id="graficoPizza" style="max-height: 400px"></canvas>
+        </div>
+      </div>
+    </main>
+
+    <!-- Script de Integração e Lógica do Dashboard -->
+    <script>
+      // --- CONFIGURAÇÃO DO FIREBASE ---
+      const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_AUTH_DOMAIN",
+        projectId: "YOUR_PROJECT_ID",
+        // Adicione outras chaves se necessário
+      };
+      
+      // Endereço da sua API Backend (Node.js/Express)
+      const BACKEND_API_URL = "http://localhost:3000/api/upload-finance"; 
+      
+      // Inicializa o Firebase
+      firebase.initializeApp(firebaseConfig);
+      const auth = firebase.auth();
+      const db = firebase.firestore();
+
+      // Variáveis de Estado Global
+      let userFinancialData = null;
+      let currentUserId = null; 
+      let isAdmin = false; // Estado de permissão administrativa
+
+      const feedbackEl = document.getElementById('feedbackMessage');
+      const loadingEl = document.getElementById('loadingIndicator');
+      const adminButton = document.getElementById('adminButton'); // Botão Admin
+
+      // Função auxiliar para exibir feedback
+      function showFeedback(message, type = 'success') {
+          feedbackEl.textContent = message;
+          feedbackEl.className = 'p-3 rounded-lg text-center mb-4';
+          if (type === 'success') {
+              feedbackEl.classList.add('bg-green-100', 'text-green-800');
+          } else if (type === 'error') {
+              feedbackEl.classList.add('bg-red-100', 'text-red-800');
+          }
+          feedbackEl.classList.remove('hidden');
+      }
+
+      // --- 1. OUVINTE DE AUTENTICAÇÃO E BUSCA DE DADOS (COM CHECAGEM ADMIN) ---
+      auth.onAuthStateChanged(async (user) => {
+        if (user) {
+          currentUserId = user.uid;
+          
+          try {
+            // Checagem de Custom Claims para permissão Admin
+            const token = await user.getIdTokenResult();
+            isAdmin = token.claims.admin === true;
+            
+            // Exibe ou oculta o botão Admin baseado na claim
+            if (adminButton) {
+                adminButton.classList.toggle('hidden', !isAdmin);
+            }
+
+            // Ouvinte em tempo real (onSnapshot) para dados financeiros
+            db.collection("finances").doc(user.uid).onSnapshot(doc => {
+                if (doc.exists) {
+                    userFinancialData = doc.data();
+                    console.log("Dados do usuário atualizados em tempo real.");
+                    renderDashboard(userFinancialData);
+                } else {
+                    console.warn("Nenhum dado financeiro encontrado. Inicializando dashboard vazio.");
+                    renderDashboard({}); 
+                }
+            }, error => {
+                console.error("Erro ao configurar onSnapshot:", error);
+                showFeedback("Erro ao carregar dados em tempo real. Tente recarregar a página.", 'error');
+            });
+
+          } catch (error) {
+            console.error("Erro no carregamento do Dashboard:", error);
+            showFeedback("Erro ao carregar dados iniciais ou permissões.", 'error');
+          }
+        } else {
+          // Usuário deslogado: Redirecionar para login
+          window.location.href = "login.html";
+        }
+      });
+
+      // --- 2. FUNÇÃO LOGOUT ---
+      window.logout = function () {
+        auth.signOut().then(() => {
+          console.log("Usuário desconectado.");
+        }).catch((error) => {
+          console.error("Erro ao sair:", error);
+        });
+      };
+      
+      // --- 3. IMPLEMENTAÇÃO DA CHAMADA À API DE UPLOAD ---
+      document.getElementById('excelFileInput').addEventListener('change', uploadExcelFile);
+
+      async function uploadExcelFile(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+
+          loadingEl.classList.remove('hidden');
+          feedbackEl.classList.add('hidden');
+
+          try {
+              // Obter ID Token para autenticar no Backend
+              const idToken = await auth.currentUser.getIdToken();
+              
+              const formData = new FormData();
+              formData.append('excel_file', file); 
+              
+              // Chamada à API
+              const response = await fetch(BACKEND_API_URL, {
+                  method: 'POST',
+                  headers: {
+                      'Authorization': `Bearer ${idToken}` // Envia o token de autenticação
+                  },
+                  body: formData // Envia o arquivo
+              });
+
+              loadingEl.classList.add('hidden');
+
+              if (!response.ok) {
+                  const errorData = await response.json();
+                  throw new Error(errorData.error || "Erro desconhecido no processamento da planilha.");
+              }
+
+              // Sucesso
+              const result = await response.json();
+              showFeedback(`Sucesso! ${result.message}`, 'success');
+              // O onSnapshot do Firebase fará o dashboard recarregar automaticamente!
+
+          } catch (error) {
+              loadingEl.classList.add('hidden');
+              console.error("Erro no upload da planilha:", error);
+              showFeedback(`Falha no upload: ${error.message}`, 'error');
+          } finally {
+              event.target.value = null; 
+          }
+      }
+
+      // --- 4. FUNÇÃO PRINCIPAL QUE RENDERIZA O DASHBOARD ---
+      function renderDashboard(data) {
+        
+        // --- 4.1. TRATAMENTO DOS DADOS ---
+        const receitasMensais = data.monthlyIncome || [0, 0, 0, 0, 0, 0];
+        const despesasMensais = data.monthlyExpenses || [0, 0, 0, 0, 0, 0];
+        const investimentoPorTipo = data.investmentDistribution || {}; 
+        
+        // CÁLCULOS
+        const totalReceitas = receitasMensais.reduce((a, b) => a + b, 0);
+        const totalDespesas = despesasMensais.reduce((a, b) => a + b, 0);
+        const totalInvestido = investimentoPorTipo ? Object.values(investimentoPorTipo).reduce((a, b) => a + b, 0) : 0;
+        const saldoDisponivel = totalReceitas - totalDespesas;
+
+        const meses = data.meses || ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].slice(0, receitasMensais.length);
+
+        // --- 4.2. ATUALIZAR INDICADORES PRINCIPAIS (DOM) ---
+        // Usa o formato brasileiro de moeda
+        document.getElementById('totalIncome').textContent = `R$ ${totalReceitas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        document.getElementById('totalExpenses').textContent = `R$ ${totalDespesas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        document.getElementById('investedBalance').textContent = `R$ ${totalInvestido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        document.getElementById('availableBalance').textContent = `R$ ${saldoDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
+        // --- 4.3. RENDERIZAR GRÁFICO DE LINHA (Receitas x Despesas) ---
+        const chartLinhaEl = document.getElementById('graficoLinha');
+        if (Chart.getChart(chartLinhaEl)) Chart.getChart(chartLinhaEl).destroy();
+        
+        new Chart(chartLinhaEl, {
+          type: 'line',
+          data: {
+            labels: meses,
+            datasets: [
+              { label: 'Receitas', data: receitasMensais, borderColor: '#10B981', fill: false },
+              { label: 'Despesas', data: despesasMensais, borderColor: '#EF4444', fill: false },
+            ]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'top' },
+              title: { display: true, text: 'Receitas x Despesas (mensal)' }
+            }
+          }
+        });
+
+        // --- 4.4. RENDERIZAR GRÁFICO DE PIZZA (Investimentos) ---
+        const labelsPizza = Object.keys(investimentoPorTipo);
+        const dataPizza = Object.values(investimentoPorTipo);
+        
+        const chartPizzaEl = document.getElementById('graficoPizza');
+        if (Chart.getChart(chartPizzaEl)) Chart.getChart(chartPizzaEl).destroy();
+        
+        new Chart(chartPizzaEl, {
+          type: 'pie',
+          data: {
+            labels: labelsPizza,
+            datasets: [{
+              data: dataPizza,
+              backgroundColor: ['#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899'] // Cores dos seus planos
+            }]
+          },
+          options: {
+            plugins: {
+              title: {
+                display: true,
+                text: 'Distribuição Atual'
+              }
+            }
+          }
+        });
+        
+        // Aplica as traduções
+        applyTranslations(localStorage.getItem('lang') || 'pt-BR');
+      }
+    </script>
+  </body>
+</html>
+```
+eof
+
+### 🚨 Lembrete Final sobre o Admin
+
+O código acima agora **verifica** se o usuário é administrador.
+
+Para que você (o proprietário da startup) possa ver o botão "Painel Administrativo", você deve **rodar o script de Backend que define seu UID** como admin (usando o Firebase Admin SDK) pelo menos uma vez, conforme instruído anteriormente:
+
+```javascript
+// Exemplo de como definir a sua própria conta como admin no Backend:
+// admin.auth().setCustomUserClaims("SEU_UID_REAL_DO_FIREBASE", {admin: true});
